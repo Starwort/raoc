@@ -7,12 +7,11 @@ use std::time::{Duration, Instant};
 use chrono::Datelike;
 use crossterm::style::{style, Stylize};
 use lazy_static::lazy_static;
-use reqwest::{header, Client};
+use reqwest::{header, Client, Response};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::{fs, time};
 
 use crate::data::{
-    get_cookie,
     leaderboard_url,
     DATA_DIR,
     PRACTICE_DATA_DIR,
@@ -131,9 +130,9 @@ lazy_static! {
         .expect("Failed to build reqwest client.");
 }
 
-pub(crate) async fn get(url: &str, authenticate: bool) -> reqwest::Response {
+pub(crate) async fn get(url: &str, authenticate: bool) -> Response {
     if authenticate {
-        CLIENT.get(url).header(header::COOKIE, get_cookie())
+        CLIENT.get(url).header(header::COOKIE, get_cookie().await)
     } else {
         CLIENT.get(url)
     }
@@ -150,9 +149,9 @@ pub(crate) async fn get_text(url: &str, authenticate: bool) -> String {
         .expect("Advent of Code sent back a bad response")
 }
 
-pub(crate) async fn post(url: &str, authenticate: bool) -> reqwest::Response {
+pub(crate) async fn post(url: &str, authenticate: bool) -> Response {
     if authenticate {
-        CLIENT.post(url).header(header::COOKIE, get_cookie())
+        CLIENT.post(url).header(header::COOKIE, get_cookie().await)
     } else {
         CLIENT.post(url)
     }
@@ -174,7 +173,7 @@ pub(crate) async fn load_leaderboard_times(
     year: i32,
 ) -> (Vec<f64>, Vec<f64>) {
     let day_dir = &*DATA_DIR / year.to_string() / day.to_string();
-    make(&day_dir);
+    make(&day_dir).await;
 
     let leaderboards = day_dir / "leaderboards.json";
     if leaderboards.exists() {
@@ -248,7 +247,7 @@ pub(crate) async fn load_leaderboard_times(
 
 pub(crate) async fn practice_result_for(day: u32, year: i32) -> Vec<f64> {
     let practice_data_dir = &*PRACTICE_DATA_DIR / year.to_string() / day.to_string();
-    make(&practice_data_dir);
+    make(&practice_data_dir).await;
     let now = chrono::Utc::now();
     let file = practice_data_dir
         / format!("{:04}-{:02}-{:02}.json", now.year(), now.month(), now.day());
@@ -264,4 +263,20 @@ pub(crate) async fn practice_result_for(day: u32, year: i32) -> Vec<f64> {
     } else {
         vec![]
     }
+}
+
+pub(crate) async fn get_cookie() -> String {
+    let token = if TOKEN_FILE.exists() {
+        strip_trailing_nl(
+            fs::read_to_string(&*TOKEN_FILE)
+                .await
+                .expect("Failed to read token file."),
+        )
+    } else {
+        load_token_from_stdin(
+            "Could not find configuration file. Please enter your token",
+        )
+        .await
+    };
+    format!("session={token}")
 }

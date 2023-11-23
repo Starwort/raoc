@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use pathdiv::PathDiv;
 use regex::Regex;
 
-use crate::internal_util::{load_token_from_stdin, strip_trailing_nl};
+use crate::internal_util::strip_trailing_nl;
 
 lazy_static! {
     pub(crate) static ref DATA_DIR: PathDiv = {
@@ -64,17 +64,4 @@ pub(crate) fn leaderboard_url(year: impl Display, day: impl Display) -> String {
 }
 pub(crate) fn base_url(year: impl Display, day: impl Display) -> String {
     format!("https://adventofcode.com/{year}/day/{day}")
-}
-
-pub(crate) fn get_cookie() -> String {
-    let token = if TOKEN_FILE.exists() {
-        strip_trailing_nl(
-            fs::read_to_string(&*TOKEN_FILE).expect("Failed to read token file."),
-        )
-    } else {
-        load_token_from_stdin(
-            "Could not find configuration file. Please enter your token",
-        )
-    };
-    format!("session={token}")
 }

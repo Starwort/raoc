@@ -5,13 +5,20 @@ use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
 use std::{fs, io, thread};
 
+use chrono::{Datelike, NaiveDate, Utc};
 use crossterm::style::{style, Stylize};
 use lazy_static::lazy_static;
 use reqwest::blocking::{Client, Response};
 use reqwest::header;
 
-use crate::data::{get_cookie, DATA_DIR, TOKEN_FILE, USER_AGENT};
-use crate::internal_util::{get_leaderboard_time, strip_trailing_nl};
+use crate::data::{
+    leaderboard_url,
+    DATA_DIR,
+    PRACTICE_DATA_DIR,
+    TOKEN_FILE,
+    USER_AGENT,
+};
+use crate::internal_util::{get_leaderboard_time, is_practice_mode, strip_trailing_nl};
 
 pub(crate) fn load_token_from_stdin(why: impl Display) -> String {
     eprintln!("{why}");
@@ -153,8 +160,6 @@ pub(crate) fn post_text(url: &str, authenticate: bool) -> String {
 }
 
 pub(crate) fn load_leaderboard_times(day: u32, year: i32) -> (Vec<f64>, Vec<f64>) {
-    use crate::data::leaderboard_url;
-
     let day_dir = &*DATA_DIR / year.to_string() / day.to_string();
     make(&day_dir);
 
@@ -225,13 +230,9 @@ pub(crate) fn load_leaderboard_times(day: u32, year: i32) -> (Vec<f64>, Vec<f64>
 }
 
 pub(crate) fn practice_result_for(day: u32, year: i32) -> Vec<f64> {
-    use chrono::Datelike;
-
-    use crate::data::PRACTICE_DATA_DIR;
-
     let practice_data_dir = &*PRACTICE_DATA_DIR / year.to_string() / day.to_string();
     make(&practice_data_dir);
-    let now = chrono::Utc::now();
+    let now = Utc::now();
     let file = practice_data_dir
         / format!("{:04}-{:02}-{:02}.json", now.year(), now.month(), now.day());
     if file.exists() {
@@ -242,4 +243,38 @@ pub(crate) fn practice_result_for(day: u32, year: i32) -> Vec<f64> {
     } else {
         vec![]
     }
+}
+
+pub(crate) fn get_cookie() -> String {
+    let token = if TOKEN_FILE.exists() {
+        strip_trailing_nl(
+            fs::read_to_string(&*TOKEN_FILE).expect("Failed to read token file."),
+        )
+    } else {
+        load_token_from_stdin(
+            "Could not find configuration file. Please enter your token",
+        )
+    };
+    format!("session={token}")
+}
+
+pub(crate) fn calculate_practice_result(day: u32, part: u32, year: i32) {
+    if !is_practice_mode() {
+        return;
+    }
+    let now = Utc::now();
+    #[allow(deprecated)]
+    let solve_time = now
+        .signed_duration_since(
+            NaiveDate::from_ymd(now.year(), now.month(), now.day())
+                .and_hms(5, 0, 0)
+                .and_utc(),
+        )
+        .to_std()
+        .expect("Should never be negative")
+        .as_secs_f64();
+    let practice_data_dir = &*PRACTICE_DATA_DIR / year.to_string() / day.to_string();
+    make(&practice_data_dir);
+    let file = practice_data_dir
+        / format!("{:04}-{:02}-{:02}.json", now.year(), now.month(), now.day());
 }

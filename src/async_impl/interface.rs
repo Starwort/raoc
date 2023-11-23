@@ -40,7 +40,7 @@ fn fetch_impl(
         assert!(year >= 2015, "Invalid year");
         assert!((1..=25).contains(&day), "Invalid day");
         let in_folder = &*DATA_DIR / year.to_string();
-        make(&in_folder);
+        make(&in_folder).await;
         let in_file = &in_folder / format!("{day}.in");
 
         if in_file.exists() {

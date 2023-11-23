@@ -1,13 +1,6 @@
-use std::fmt::Display;
-use std::path::Path;
-use std::sync::atomic::{self, AtomicBool};
-use std::time::{Duration, Instant};
-use std::{fs, io, thread};
+use crossterm::style::Stylize;
 
-use crossterm::style::{style, Stylize};
-use lazy_static::lazy_static;
-
-use crate::data::{DATA_DIR, GOLD, TOKEN_FILE, USER_AGENT};
+use crate::data::{DATA_DIR, GOLD};
 
 pub(crate) fn strip_trailing_nl(mut input: String) -> String {
     let new_len = input
@@ -20,12 +13,6 @@ pub(crate) fn strip_trailing_nl(mut input: String) -> String {
     }
     input
 }
-
-#[cfg(feature = "async")]
-#[cfg(all(not(feature = "sync"), feature = "async"))]
-pub use async_wait as wait;
-#[cfg(all(not(feature = "sync"), feature = "async"))]
-pub use async_work as work;
 
 /// Open the page, if the user hasn't opted out.
 pub(crate) fn open_page(url: &str) {
@@ -63,5 +50,7 @@ pub(crate) fn get_leaderboard_time(day: u32, time: &str) -> f64 {
     )
     .expect("Failed to parse time")
         - chrono::NaiveDate::from_ymd(1900, 12, day).and_hms(0, 0, 0))
-    .num_seconds() as f64
+    .to_std()
+    .expect("Should never be negative")
+    .as_secs_f64()
 }
