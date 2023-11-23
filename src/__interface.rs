@@ -466,22 +466,6 @@ fn update_submissions(
     .expect("Failed to write submissions file.");
 }
 
-#[cfg(feature = "web")]
-fn message_from_body(body: &str) -> String {
-    use tl::ParserOptions;
-
-    let page =
-        tl::parse(body, ParserOptions::new()).expect("Failed to parse response.");
-    let article = page
-        .query_selector("article")
-        .expect("Failed to compile the 'article' query")
-        .next()
-        .expect("`article` tag missing from response")
-        .get(page.parser())
-        .expect("Failed to retrieve node associated with the `article` tag");
-    article.inner_text(page.parser()).to_string()
-}
-
 #[cfg(feature = "blocking")]
 /// Submit a solution.
 ///

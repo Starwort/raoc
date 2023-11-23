@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use crossterm::style::Stylize;
 
-use crate::data::{DATA_DIR, GOLD};
+use crate::data::{DATA_DIR, GOLD, RANK};
 
 pub(crate) fn strip_trailing_nl(mut input: String) -> String {
     let new_len = input
@@ -53,4 +55,46 @@ pub(crate) fn get_leaderboard_time(day: u32, time: &str) -> f64 {
     .to_std()
     .expect("Should never be negative")
     .as_secs_f64()
+}
+
+pub(crate) fn format_time(seconds: f64) -> String {
+    let (minutes, seconds) = ((seconds / 60.0).trunc(), seconds % 60.0);
+    let (hours, minutes) = ((minutes / 60.0).trunc(), minutes % 60.0);
+    if hours > 0.0 {
+        format!("{hours:02.0}:{minutes:02.0}:{:02.0}", seconds.trunc())
+    } else {
+        format!("{minutes:02.0}:{seconds:05.2}")
+    }
+}
+
+pub(crate) fn message_from_body(body: &str) -> String {
+    use tl::ParserOptions;
+
+    let page =
+        tl::parse(body, ParserOptions::new()).expect("Failed to parse response.");
+    let article = page
+        .query_selector("article")
+        .expect("Failed to compile the 'article' query")
+        .next()
+        .expect("`article` tag missing from response")
+        .get(page.parser())
+        .expect("Failed to retrieve node associated with the `article` tag");
+    article.inner_text(page.parser()).to_string()
+}
+
+pub(crate) fn print_rank(msg: &str) {
+    if let Some(rank) = RANK.captures(msg) {
+        pretty_print(&format!(
+            "You got rank {} for this puzzle",
+            rank.get(1).expect("RANK regex has one capture").as_str()
+        ));
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct Submissions {
+    #[serde(rename = "1")]
+    pub part_1: HashMap<String, String>,
+    #[serde(rename = "2")]
+    pub part_2: HashMap<String, String>,
 }

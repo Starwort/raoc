@@ -6,8 +6,6 @@ use lazy_static::lazy_static;
 use pathdiv::PathDiv;
 use regex::Regex;
 
-use crate::internal_util::strip_trailing_nl;
-
 lazy_static! {
     pub(crate) static ref DATA_DIR: PathDiv = {
         let path = PathDiv::new()

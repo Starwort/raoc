@@ -8,17 +8,24 @@ use std::{fs, io, thread};
 use chrono::{Datelike, NaiveDate, Utc};
 use crossterm::style::{style, Stylize};
 use lazy_static::lazy_static;
+use pathdiv::PathDiv;
 use reqwest::blocking::{Client, Response};
 use reqwest::header;
 
 use crate::data::{
     leaderboard_url,
     DATA_DIR,
+    GOLD,
     PRACTICE_DATA_DIR,
     TOKEN_FILE,
     USER_AGENT,
 };
-use crate::internal_util::{get_leaderboard_time, is_practice_mode, strip_trailing_nl};
+use crate::internal_util::{
+    format_time,
+    get_leaderboard_time,
+    is_practice_mode,
+    strip_trailing_nl,
+};
 
 pub(crate) fn load_token_from_stdin(why: impl Display) -> String {
     eprintln!("{why}");
@@ -143,20 +150,19 @@ pub(crate) fn get_text(url: &str, authenticate: bool) -> String {
         .expect("Advent of Code sent back a bad response")
 }
 
-pub(crate) fn post(url: &str, authenticate: bool) -> reqwest::blocking::Response {
+pub(crate) fn post(
+    url: &str,
+    authenticate: bool,
+    data: impl serde::Serialize,
+) -> reqwest::blocking::Response {
     if authenticate {
         CLIENT.post(url).header(header::COOKIE, get_cookie())
     } else {
         CLIENT.post(url)
     }
+    .form(&data)
     .send()
     .expect("Advent of Code sent back a bad response, or the network is down.")
-}
-
-pub(crate) fn post_text(url: &str, authenticate: bool) -> String {
-    post(url, authenticate)
-        .text()
-        .expect("Advent of Code sent back a bad response")
 }
 
 pub(crate) fn load_leaderboard_times(day: u32, year: i32) -> (Vec<f64>, Vec<f64>) {
@@ -218,30 +224,33 @@ pub(crate) fn load_leaderboard_times(day: u32, year: i32) -> (Vec<f64>, Vec<f64>
         }
         if part_1_times.len() == 100 && part_2_times.len() == 100 {
             // Both leaderboards are full, cache them
-            let file = fs::File::create(&leaderboards).expect(
-                "Failed to create leaderboard cache. Please check your permissions",
-            );
-            serde_json::to_writer(file, &(&part_1_times, &part_2_times)).expect(
-                "Failed to write leaderboard cache. Please check your permissions",
-            );
+            serde_json::to_writer(
+                fs::File::create(&leaderboards).expect(
+                    "Failed to create leaderboard cache. Please check your permissions",
+                ),
+                &(&part_1_times, &part_2_times),
+            )
+            .expect("Failed to write leaderboard cache. Please check your permissions");
         }
         (part_1_times, part_2_times)
     }
 }
 
-pub(crate) fn practice_result_for(day: u32, year: i32) -> Vec<f64> {
+pub(crate) fn practice_result_for(day: u32, year: i32) -> (PathDiv, Vec<f64>) {
     let practice_data_dir = &*PRACTICE_DATA_DIR / year.to_string() / day.to_string();
     make(&practice_data_dir);
     let now = Utc::now();
     let file = practice_data_dir
         / format!("{:04}-{:02}-{:02}.json", now.year(), now.month(), now.day());
     if file.exists() {
-        serde_json::from_reader(
-            fs::File::open(file).expect("Opening practice data file should never fail"),
+        let data = serde_json::from_reader(
+            fs::File::open(&file)
+                .expect("Opening practice data file should never fail"),
         )
-        .expect("Failed to parse practice data")
+        .expect("Failed to parse practice data");
+        (file, data)
     } else {
-        vec![]
+        (file, vec![])
     }
 }
 
@@ -273,8 +282,83 @@ pub(crate) fn calculate_practice_result(day: u32, part: u32, year: i32) {
         .to_std()
         .expect("Should never be negative")
         .as_secs_f64();
-    let practice_data_dir = &*PRACTICE_DATA_DIR / year.to_string() / day.to_string();
-    make(&practice_data_dir);
-    let file = practice_data_dir
-        / format!("{:04}-{:02}-{:02}.json", now.year(), now.month(), now.day());
+    let (file, mut data) = practice_result_for(day, year);
+    data.push(solve_time);
+    serde_json::to_writer(
+        fs::File::create(file).expect("Opening practice result file failed"),
+        &data,
+    )
+    .expect("Saving practice results failed");
+    report_practice_result(day, part, year, solve_time);
+}
+
+fn estimate_practice_rank(
+    day: u32,
+    part: u32,
+    year: i32,
+    solve_time: f64,
+) -> Option<(usize, usize, usize)> {
+    let leaderboard = load_leaderboard_times(day, year);
+    let leaderboard = match part {
+        1 => leaderboard.0,
+        2 => leaderboard.1,
+        _ => panic!("part was neither 1 nor 2"),
+    };
+    let truncated_solve_time = solve_time.trunc();
+    let best_possible_rank =
+        leaderboard.partition_point(|&opp_time| opp_time < truncated_solve_time) + 1;
+    let worst_possible_rank =
+        leaderboard.partition_point(|&opp_time| opp_time < solve_time) + 1;
+    if best_possible_rank > 100 {
+        None
+    } else {
+        let span = worst_possible_rank - best_possible_rank;
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            clippy::cast_precision_loss
+        )]
+        let approx = best_possible_rank + (span as f64 * solve_time.fract()) as usize;
+        Some((approx, best_possible_rank, worst_possible_rank))
+    }
+}
+
+fn report_practice_result(day: u32, part: u32, year: i32, solve_time: f64) {
+    println!(
+        "{} {}{}",
+        "You solved the puzzle in".green(),
+        format_time(solve_time).blue(),
+        '!'.green(),
+    );
+
+    let result = estimate_practice_rank(day, part, year, solve_time);
+    match result {
+        None => {
+            println!(
+                "{}",
+                "You would not have achieved a leaderboard position.".yellow()
+            );
+        },
+        Some((_approx, best, worst)) if best == worst => {
+            println!(
+                "{} {}{}",
+                "You would have achieved rank".with(GOLD),
+                style(best).with(GOLD),
+                '!'.with(GOLD)
+            );
+        },
+        Some((approx, best, worst)) => {
+            println!(
+                "{} {} {}{} {} {}{}{}",
+                "You would have achieved approximately rank".with(GOLD),
+                style(approx).with(GOLD),
+                '('.with(GOLD),
+                style(best).with(GOLD),
+                "to".with(GOLD),
+                style(if worst > 100 { 100 } else { worst }).with(GOLD),
+                if worst > 100 { "+" } else { "" }.with(GOLD),
+                ")!".with(GOLD),
+            );
+        },
+    }
 }
