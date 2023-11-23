@@ -1,0 +1,27 @@
+[package]
+edition = "2021"
+name = "raoc"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = {version = "0.4.23", default-features = false, features = ["clock"]}
+crossterm = "0.27.0"
+dirs = "5.0.1"
+lazy_static = "1.4.0"
+pathdiv = "0.1.0"
+regex = "1.7.0"
+reqwest = {version = "0.11.13", optional = true}
+serde = {version = "1.0.151", optional = true}
+serde_json = {version = "1.0.91", optional = true}
+tl = {version = "0.7.7", optional = true}
+tokio = { version = "1.34.0", optional = true, features = ["macros", "fs"] }
+webbrowser = "0.8.2"
+
+[features]
+async = ["reqwest", "web", "tokio"]
+sync = ["reqwest/blocking", "web"]
+default = ["sync", "async"]
+simd = ["tl/simd"]
+web = ["tl", "serde", "serde_json"]
