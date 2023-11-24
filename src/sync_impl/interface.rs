@@ -345,7 +345,14 @@ pub fn lazy_submit<U, S1: MaybeDisplay, S2: MaybeDisplay>(
     lazy_submit_part(day, year, 1, solution_part_1, &mut parse_raw);
     lazy_submit_part(day, year, 2, solution_part_2, &mut parse_raw);
 }
-fn lazy_submit_part<U, M: MaybeDisplay>(
+
+/// Run the function only if we haven't seen a solution.
+///
+/// Will also run solution if `--force-run` or `--practice` is passed on the
+/// command line.
+///
+/// If the day is 25 and the part is 2, will ignore the solution.
+pub fn lazy_submit_part<U, M: MaybeDisplay>(
     day: u32,
     year: i32,
     part: u32,
@@ -395,10 +402,10 @@ fn lazy_submit_part<U, M: MaybeDisplay>(
                 )
             }),
         )
-        .expect("Failed to parse submission cache");
+        .unwrap_or_else(|_| unreachable!("Failed to parse submission cache"));
 
         let solution = fs::read_to_string(solution_file)
-            .unwrap_or_else(|_| panic!("Solution file was corrupt"));
+            .unwrap_or_else(|_| unreachable!("Solution file was corrupt"));
         let response = match part {
             1 => &solutions.part_1[&solution],
             2 => &solutions.part_2[&solution],

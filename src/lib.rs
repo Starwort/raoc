@@ -10,6 +10,7 @@ mod async_impl;
 pub use async_impl::{
     fetch as async_fetch,
     lazy_submit as async_lazy_submit,
+    lazy_submit_part as async_lazy_submit_part,
     submit as async_submit,
     wait as async_wait,
     work as async_work,
@@ -22,6 +23,7 @@ mod sync_impl;
 pub use sync_impl::{
     fetch as sync_fetch,
     lazy_submit as sync_lazy_submit,
+    lazy_submit_part as sync_lazy_submit_part,
     submit as sync_submit,
     wait as sync_wait,
     work as sync_work,

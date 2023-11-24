@@ -396,7 +396,13 @@ pub async fn lazy_submit<
     lazy_submit_part(day, year, 2, solution_part_2, &mut parse_raw).await;
 }
 
-async fn lazy_submit_part<
+/// Run the function only if we haven't seen a solution.
+///
+/// Will also run solution if `--force-run` or `--practice` is passed on the
+/// command line.
+///
+/// If the day is 25 and the part is 2, will ignore the solution.
+pub async fn lazy_submit_part<
     U,
     M: MaybeDisplay,
     S: Future<Output = M>,
@@ -452,11 +458,11 @@ async fn lazy_submit_part<
                 )
             }),
         )
-        .expect("Failed to parse submission cache");
+        .unwrap_or_else(|_| unreachable!("Failed to parse submission cache"));
 
         let solution = fs::read_to_string(solution_file)
             .await
-            .unwrap_or_else(|_| panic!("Solution file was corrupt"));
+            .unwrap_or_else(|_| unreachable!("Solution file was corrupt"));
         let response = match part {
             1 => &solutions.part_1[&solution],
             2 => &solutions.part_2[&solution],
