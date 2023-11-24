@@ -6,24 +6,28 @@ use std::time::Duration;
 use chrono::{DateTime, Datelike, TimeZone, Utc};
 use crossterm::style::{style, Stylize};
 
+use super::internal_util::{
+    calculate_practice_result,
+    get,
+    load_token_from_stdin,
+    make,
+    post,
+    practice_result_for,
+    wait,
+    work,
+};
 use crate::data::{base_url, DATA_DIR, WAIT_TIME};
 use crate::internal_util::{
     is_practice_mode,
     message_from_body,
+    must_run_solutions,
     open_page,
     pretty_print,
     print_rank,
     strip_trailing_nl,
     Submissions,
 };
-use crate::sync_impl::internal_util::{
-    calculate_practice_result,
-    get,
-    load_token_from_stdin,
-    make,
-    post,
-};
-use crate::sync_impl::wait;
+use crate::MaybeDisplay;
 
 /// Fetch and return the input for `day` of `year`.
 ///
@@ -292,5 +296,120 @@ fn submit_impl(day: u32, part: u32, year: i32, answer: String) {
         part_solutions.insert(answer, msg);
         fs::write(submissions, serde_json::to_string(&solutions).unwrap())
             .expect("Writing submissions cache failed");
+    }
+}
+fn submit_25(year: &str) {
+    let resp = loop {
+        println!(
+            "{} {}{}",
+            "Finishing Advent of Code".green(),
+            year.blue(),
+            '!'.green(),
+        );
+        let resp = post(
+            &(base_url(year, 25) + "/answer"),
+            true,
+            HashMap::from([("level", "2"), ("answer", "0")]),
+        );
+        if resp.status().is_success() {
+            break resp;
+        } else if resp.status().is_client_error() {
+            load_token_from_stdin(
+                "Your token has expired. Please enter your new token.".red(),
+            );
+        } else {
+            panic!("Received bad response from server: {}", resp.status());
+        }
+    };
+
+    println!("Response from the server:");
+    println!(
+        "{}",
+        message_from_body(&resp.text().expect("Response should be text")),
+    );
+}
+
+/// Run the functions only if we haven't seen a solution.
+///
+/// Will also run solutions if `--force-run` or `--practice` is passed on the
+/// command line.
+///
+/// The solution for part 2 will be ignored if day is 25.
+pub fn lazy_submit<U, S1: MaybeDisplay, S2: MaybeDisplay>(
+    day: u32,
+    year: i32,
+    solution_part_1: impl FnOnce(U) -> S1,
+    solution_part_2: impl FnOnce(U) -> S2,
+    mut parse_raw: impl FnMut(&str) -> U,
+) {
+    lazy_submit_part(day, year, 1, solution_part_1, &mut parse_raw);
+    lazy_submit_part(day, year, 2, solution_part_2, &mut parse_raw);
+}
+fn lazy_submit_part<U, M: MaybeDisplay>(
+    day: u32,
+    year: i32,
+    part: u32,
+    solution_part_1: impl FnOnce(U) -> M,
+    parse_raw: impl FnOnce(&str) -> U,
+) {
+    let submission_dir = &*DATA_DIR / year.to_string() / day.to_string();
+    make(&submission_dir);
+    if day == 25 && part == 2 {
+        // don't try to submit part 2 if part 1 isn't solved
+        if (&submission_dir / "1.solution").exists() {
+            submit_25(&year.to_string());
+        } else {
+            return;
+        }
+    }
+    let solution_file = &submission_dir / format!("{part}.solution");
+    if !solution_file.exists()
+        || must_run_solutions()
+        || (is_practice_mode()
+            && practice_result_for(day, year).1.len() < part as usize)
+    {
+        let answer = work(
+            format!(
+                "{} {} {}",
+                "Running part".yellow(),
+                style(part).blue(),
+                "solution".yellow(),
+            ),
+            || {
+                let raw = fetch(day, year, false);
+                solution_part_1(parse_raw(&raw))
+            },
+        )
+        .into_solution();
+        if let Some(answer) = answer {
+            submit(day, part, year, answer);
+        }
+    } else {
+        // load cached solutions
+        let submissions = submission_dir / "submissions.json";
+        let solutions: Submissions = serde_json::from_str(
+            &fs::read_to_string(submissions).unwrap_or_else(|_| {
+                unreachable!(
+                    "Failed to read submission cache, which must exist as this part \
+                     has already been solved"
+                )
+            }),
+        )
+        .expect("Failed to parse submission cache");
+
+        let solution = fs::read_to_string(solution_file)
+            .unwrap_or_else(|_| panic!("Solution file was corrupt"));
+        let response = match part {
+            1 => &solutions.part_1[&solution],
+            2 => &solutions.part_2[&solution],
+            _ => unreachable!("Part should be 1 or 2"),
+        };
+        println!(
+            "Day {} part {} has already been solved.\nThe solution was {}",
+            style(day).blue(),
+            style(part).blue(),
+            solution.blue(),
+        );
+        print_rank(response);
     }
 }

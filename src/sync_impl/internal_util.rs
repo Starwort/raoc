@@ -79,7 +79,7 @@ pub fn wait(msg: impl Display, time: Duration) {
 
 /// Run the given worker function, displaying a message, spinner, and elapsed
 /// timer.
-pub fn work<T, U>(msg: impl Display + Sync, worker: impl FnOnce(T) -> U, data: T) -> U {
+pub fn work<T>(msg: impl Display + Sync, worker: impl FnOnce() -> T) -> T {
     let start = Instant::now();
     let is_done = AtomicBool::new(false);
     thread::scope(|scope| {
@@ -113,7 +113,7 @@ pub fn work<T, U>(msg: impl Display + Sync, worker: impl FnOnce(T) -> U, data: T
             }
             eprintln!();
         });
-        let result = worker(data);
+        let result = worker();
         // let the spinner thread die in its own time
         is_done.store(true, atomic::Ordering::Relaxed);
         result

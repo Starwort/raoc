@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env;
 
 use crossterm::style::Stylize;
 
@@ -40,7 +41,11 @@ pub(crate) fn pretty_print(message: &str) {
 }
 
 pub(crate) fn is_practice_mode() -> bool {
-    std::env::args().any(|arg| arg == "--practice")
+    env::args().any(|arg| arg == "--practice")
+}
+
+pub(crate) fn must_run_solutions() -> bool {
+    env::args().any(|arg| arg == "--force-run")
 }
 
 #[cfg(any(feature = "sync", feature = "async"))]

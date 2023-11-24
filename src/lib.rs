@@ -9,6 +9,7 @@ mod async_impl;
 #[allow(unused_imports)]
 pub use async_impl::{
     fetch as async_fetch,
+    lazy_submit as async_lazy_submit,
     submit as async_submit,
     wait as async_wait,
     work as async_work,
@@ -20,6 +21,7 @@ mod sync_impl;
 #[allow(unused_imports)]
 pub use sync_impl::{
     fetch as sync_fetch,
+    lazy_submit as sync_lazy_submit,
     submit as sync_submit,
     wait as sync_wait,
     work as sync_work,
