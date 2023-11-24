@@ -33,3 +33,14 @@ mod data;
 mod internal_util;
 mod maybe_display;
 pub use maybe_display::MaybeDisplay;
+
+#[cfg(all(feature = "simd", not(feature = "web")))]
+compile_error!(
+    "Cannot enable SIMD without enabling either the 'sync' or 'async' feature."
+);
+
+#[cfg(all(feature = "web", not(any(feature = "sync", feature = "async"))))]
+compile_error!(
+    "Please do not enable the 'web' feature manually. It is an internal feature used \
+     by the 'sync' and 'async' features - please enable one of those instead."
+);

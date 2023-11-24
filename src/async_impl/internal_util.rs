@@ -186,8 +186,9 @@ pub(crate) async fn load_leaderboard_times(
         serde_json::from_str(&data).expect("Failed to parse leaderboard cache.")
     } else {
         let leaderboard_page = get_text(&leaderboard_url(year, day), false).await;
-        let soup = tl::parse(&leaderboard_page, tl::ParserOptions::new())
-            .expect("Parsing the leaderboard page failed.");
+        let soup =
+            tl::parse(&leaderboard_page, tl::ParserOptions::new().track_classes())
+                .expect("Parsing the leaderboard page failed.");
         let times = soup
             .query_selector(".leaderboard-entry")
             .expect("Selector is always valid");

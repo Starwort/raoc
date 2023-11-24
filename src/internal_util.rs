@@ -72,6 +72,7 @@ pub(crate) fn format_time(seconds: f64) -> String {
     }
 }
 
+#[cfg(feature = "web")]
 pub(crate) fn message_from_body(body: &str) -> String {
     use tl::ParserOptions;
 
@@ -96,10 +97,27 @@ pub(crate) fn print_rank(msg: &str) {
     }
 }
 
+#[cfg(feature = "web")]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub(crate) struct Submissions {
     #[serde(rename = "1")]
     pub part_1: HashMap<String, String>,
     #[serde(rename = "2")]
     pub part_2: HashMap<String, String>,
+}
+
+#[cfg(feature = "web")]
+pub fn double_option<'de, T: serde::Deserialize<'de>, D: serde::Deserializer<'de>>(
+    de: D,
+) -> Result<Option<Option<T>>, D::Error> {
+    serde::Deserialize::deserialize(de).map(Some)
+}
+
+#[cfg(feature = "web")]
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct TestInfo {
+    #[serde(rename = "1", deserialize_with = "double_option")]
+    pub part_1: Option<Option<(String, String)>>,
+    #[serde(rename = "2", deserialize_with = "double_option")]
+    pub part_2: Option<Option<(String, String)>>,
 }

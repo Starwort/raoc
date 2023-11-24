@@ -6,16 +6,21 @@ use std::time::Duration;
 
 use chrono::{DateTime, Datelike, TimeZone, Utc};
 use crossterm::style::{style, Stylize};
+#[cfg(feature = "pretty_assertions")]
+use pretty_assertions::assert_eq;
 use tokio::fs;
 
 use super::internal_util::{
+    calculate_practice_result,
     get,
+    get_text,
     load_token_from_stdin,
     make,
+    post,
     practice_result_for,
     wait,
+    work,
 };
-use crate::async_impl::internal_util::{calculate_practice_result, post, work};
 use crate::data::{base_url, DATA_DIR, WAIT_TIME};
 use crate::internal_util::{
     is_practice_mode,
@@ -26,6 +31,7 @@ use crate::internal_util::{
     print_rank,
     strip_trailing_nl,
     Submissions,
+    TestInfo,
 };
 use crate::MaybeDisplay;
 
@@ -476,4 +482,57 @@ pub async fn lazy_submit_part<
         );
         print_rank(response);
     }
+}
+
+/// Retrieve the example input and answer for the specified puzzle.
+///
+/// This is provided on a best-effort basis; not all puzzles have example
+/// inputs, and some puzzles that do have example inputs have example inputs
+/// that are difficult to determine programmatically.
+pub async fn get_sample_input(
+    day: u32,
+    part: u32,
+    year: i32,
+) -> Option<(String, String)> {
+    let testing_dir = &*DATA_DIR / year.to_string() / day.to_string();
+    make(&testing_dir).await;
+    let testing_file = testing_dir / "tests.json";
+    let test_info = if testing_file.exists() {
+        serde_json::from_str(
+            &fs::read_to_string(testing_file)
+                .await
+                .unwrap_or_else(|_| unreachable!("Failed to read test cache")),
+        )
+        .unwrap_or(TestInfo {
+            part_1: None,
+            part_2: None,
+        })
+    } else {
+        TestInfo {
+            part_1: None,
+            part_2: None,
+        }
+    };
+
+    let part_tests = match part {
+        1 => &test_info.part_1,
+        2 => &test_info.part_2,
+        _ => unreachable!("Part should be 1 or 2"),
+    };
+
+    if let Some(part_tests) = part_tests {
+        return part_tests.clone();
+    }
+
+    let resp = get_text(&(base_url(year, day) + "/input"), true).await;
+    let soup = tl::parse(&resp, tl::ParserOptions::new()).unwrap_or_else(|_| {
+        unreachable!("Advent of Code server returned a bad response")
+    });
+
+    let possible_test_inputs = soup.query_selector("pre").unwrap_or_else(||unreachable!("Selector 'pre' is always valid")).map(
+        |node| {
+            let node = node.get(soup.parser()).unwrap_or_else(||unreachable!("Node is from this parser"))
+            
+        }
+    )
 }

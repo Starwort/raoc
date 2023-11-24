@@ -11,6 +11,7 @@ crossterm = "0.27.0"
 dirs = "5.0.1"
 lazy_static = "1.4.0"
 pathdiv = "0.1.0"
+pretty_assertions = { version = "1.4.0", optional = true }
 regex = "1.7.0"
 reqwest = { version = "0.11.13", optional = true }
 serde = {version = "1.0.151", optional = true, features = ["derive"]}
@@ -20,8 +21,8 @@ tokio = { version = "1.34.0", optional = true, features = ["macros", "fs"] }
 webbrowser = "0.8.2"
 
 [features]
-async = ["reqwest", "web", "tokio"]
+async = ["dep:reqwest", "web", "dep:tokio"]
 sync = ["reqwest/blocking", "web"]
 default = ["sync", "async"]
 simd = ["tl/simd"]
-web = ["tl", "serde", "serde_json"]
+web = ["dep:tl", "dep:serde", "dep:serde_json"]
