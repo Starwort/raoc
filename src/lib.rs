@@ -1,3 +1,4 @@
+#![doc = include_str!("../README.md")]
 #![feature(negative_impls, auto_traits)]
 #[cfg(feature = "async")]
 mod async_impl;

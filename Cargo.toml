@@ -3,6 +3,12 @@ edition = "2021"
 name = "raoc"
 version = "0.1.0"
 
+authors = ["starwort"]
+description = "RAoC - Rust Advent of Code, port of `aoc_helper`"
+homepage = "https://github.com/starwort/raoc"
+license = "MIT"
+repository = "https://github.com/starwort/raoc"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
