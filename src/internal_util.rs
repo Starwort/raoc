@@ -107,17 +107,25 @@ pub(crate) struct Submissions {
 }
 
 #[cfg(feature = "web")]
-pub fn double_option<'de, T: serde::Deserialize<'de>, D: serde::Deserializer<'de>>(
-    de: D,
-) -> Result<Option<Option<T>>, D::Error> {
-    serde::Deserialize::deserialize(de).map(Some)
-}
+mod test_info {
+    #![allow(clippy::option_option)]
+    pub fn double_option<
+        'de,
+        T: serde::Deserialize<'de>,
+        D: serde::Deserializer<'de>,
+    >(
+        de: D,
+    ) -> Result<Option<Option<T>>, D::Error> {
+        serde::Deserialize::deserialize(de).map(Some)
+    }
 
-#[cfg(feature = "web")]
-#[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) struct TestInfo {
-    #[serde(rename = "1", deserialize_with = "double_option")]
-    pub part_1: Option<Option<(String, String)>>,
-    #[serde(rename = "2", deserialize_with = "double_option")]
-    pub part_2: Option<Option<(String, String)>>,
+    #[derive(serde::Serialize, serde::Deserialize)]
+    pub struct TestInfo {
+        #[serde(rename = "1", deserialize_with = "double_option")]
+        pub part_1: Option<Option<(String, String)>>,
+        #[serde(rename = "2", deserialize_with = "double_option")]
+        pub part_2: Option<Option<(String, String)>>,
+    }
 }
+#[cfg(feature = "web")]
+pub(crate) use test_info::TestInfo;
