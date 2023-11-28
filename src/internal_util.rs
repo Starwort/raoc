@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::env;
 
-use crossterm::style::Stylize;
+use crossterm::style::{style, Stylize};
 
 use crate::data::{DATA_DIR, GOLD, RANK};
 
@@ -129,3 +129,22 @@ mod test_info {
 }
 #[cfg(feature = "web")]
 pub(crate) use test_info::TestInfo;
+
+pub(crate) fn test(part: u32, answer: &str, expected: &str) {
+    #[cfg(feature = "pretty_assertions")]
+    use pretty_assertions::assert_eq;
+    assert_eq!(
+        answer, expected,
+        "The expected answer for the test input was {expected} but your answer was \
+         {answer}.",
+    );
+    println!(
+        "{} {} {} {} {} {}",
+        "Test for part".green(),
+        style(part).blue(),
+        "succeeded! The answer for part".green(),
+        style(part).blue(),
+        "with the test data was:".green(),
+        answer.blue(),
+    );
+}

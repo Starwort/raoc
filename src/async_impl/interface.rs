@@ -6,8 +6,6 @@ use std::time::Duration;
 
 use chrono::{DateTime, Datelike, TimeZone, Utc};
 use crossterm::style::{style, Stylize};
-#[cfg(feature = "pretty_assertions")]
-use pretty_assertions::assert_eq;
 use tokio::fs;
 
 use super::internal_util::{
